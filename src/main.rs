@@ -10,7 +10,17 @@ struct Window {
     buffers: HashMap<id::Id, softbuffer::Surface<DisplayWrapper, WindowWrapper>>,
 }
 
+struct CairoData {
+    data: softbuffer::Surface<DisplayWrapper, WindowWrapper>,
+    surface: cairo::ImageSurface,
+    cairo_context: cairo::Context,
+}
+
 impl ExWlShellHandler for Window {
+    type Ret = i32;
+    fn return_value(&self) -> Option<Self::Ret> {
+        Some(100)
+    }
     fn on_init(
         &mut self,
         _state: &mut ExWlGlobalShellState,
@@ -157,5 +167,6 @@ fn main() {
     };
     let ev = prebuild.attach(window).unwrap();
 
-    ev.run().unwrap()
+    let _ret = ev.run().unwrap();
+    println!("{_ret:?}");
 }

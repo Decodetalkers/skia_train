@@ -260,9 +260,9 @@ dependencies = [
 
 [[package]]
 name = "exwlshellev"
-version = "0.21.0"
+version = "0.21.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b07d1c6fdcdf98e7b90e3fb295939c4cf379852cc22110fc4722506dea40586f"
+checksum = "891e345cbdd39220e870075d24e315327310d964464757e58eb7ab679e2882a6"
 dependencies = [
  "calloop",
  "calloop-wayland-source",
@@ -1245,9 +1245,9 @@ dependencies = [
 
 [[package]]
 name = "waycrate_xkbkeycode"
-version = "0.21.0"
+version = "0.21.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b5ad955dc6f85425a3d2fa766eb32dd843b87d313be5f15d78911ad7a6510698"
+checksum = "7f7125f27d31bd06e7c2c6d8b9a6abc38725642aa3d8b092e3a2e185499df488"
 dependencies = [
  "calloop",
  "log",

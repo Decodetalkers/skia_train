@@ -4,10 +4,58 @@ use std::num::NonZeroU32;
 use exwlshellev::keyboard::{KeyCode, PhysicalKey};
 use exwlshellev::reexport::*;
 use exwlshellev::*;
+use tiny_skia::*;
 
 struct Window {
     context: softbuffer::Context<DisplayWrapper>,
     buffers: HashMap<id::Id, softbuffer::Surface<DisplayWrapper, WindowWrapper>>,
+}
+
+fn draw(width: u32, height: u32) -> Pixmap {
+    let mut paint1 = Paint::default();
+    paint1.set_color_rgba8(50, 127, 150, 200);
+    paint1.anti_alias = true;
+
+    let mut paint2 = Paint::default();
+    paint2.set_color_rgba8(220, 140, 75, 180);
+    paint2.anti_alias = false;
+
+    let path1 = {
+        let mut pb = PathBuilder::new();
+        pb.move_to(60.0, 60.0);
+        pb.line_to(160.0, 940.0);
+        pb.cubic_to(380.0, 840.0, 660.0, 800.0, 940.0, 800.0);
+        pb.cubic_to(740.0, 460.0, 440.0, 160.0, 60.0, 60.0);
+        pb.close();
+        pb.finish().unwrap()
+    };
+
+    let path2 = {
+        let mut pb = PathBuilder::new();
+        pb.move_to(940.0, 60.0);
+        pb.line_to(840.0, 940.0);
+        pb.cubic_to(620.0, 840.0, 340.0, 800.0, 60.0, 800.0);
+        pb.cubic_to(260.0, 460.0, 560.0, 160.0, 940.0, 60.0);
+        pb.close();
+        pb.finish().unwrap()
+    };
+
+    let mut pixmap = Pixmap::new(width, height).unwrap();
+    pixmap.fill_path(
+        &path1,
+        &paint1,
+        FillRule::Winding,
+        Transform::identity(),
+        None,
+    );
+    pixmap.fill_path(
+        &path2,
+        &paint2,
+        FillRule::Winding,
+        Transform::identity(),
+        None,
+    );
+    pixmap
 }
 
 impl ExWlShellHandler for Window {
@@ -72,28 +120,26 @@ impl ExWlShellHandler for Window {
         let surface = self.buffers.get_mut(&id).unwrap();
         if resized {
             surface
-                .resize(
+                .configure(
                     NonZeroU32::new(width).unwrap(),
                     NonZeroU32::new(height).unwrap(),
+                    softbuffer::AlphaMode::Premultiplied,
                 )
                 .unwrap();
         }
         let mut buffer = surface.next_buffer().unwrap();
 
-        use std::cmp::min;
-        let buf_x = buffer.width().get();
-        let buf_y = buffer.height().get();
+        let pixmap = draw(width, height);
         for (x, y, pixel) in buffer.pixels_iter() {
-            let a = 0xFF;
-            let r = min(((buf_x - x) * 0xFF) / buf_x, ((buf_y - y) * 0xFF) / buf_y);
-            let g = min((x * 0xFF) / buf_x, ((buf_y - y) * 0xFF) / buf_y);
-            let b = min(((buf_x - x) * 0xFF) / buf_x, (y * 0xFF) / buf_y);
+            let sika_pixel = pixmap.pixel(x, y).unwrap();
+            let b = sika_pixel.blue();
+            let g = sika_pixel.green();
+            let r = sika_pixel.red();
+            let a = sika_pixel.alpha();
 
-            *pixel = softbuffer::Pixel::new_bgra(b as _, g as _, r as _, a as _);
+            *pixel = softbuffer::Pixel::new_bgra(b, g, r, a);
         }
         buffer.present().unwrap();
-
-        println!("{width}, {height}");
     }
 
     fn on_broadcast(&mut self, _context: NoIdEventContext<Self>, event: ExWlShellBroadcast) {

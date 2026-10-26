@@ -63,41 +63,6 @@ impl ExWlShellHandler for Window {
     fn return_value(&self) -> Option<Self::Ret> {
         Some(100)
     }
-    fn on_init(
-        &mut self,
-        _state: &mut ExWlGlobalShellState,
-        event: ExWlShellInitEvent,
-    ) -> InitRequest {
-        match event {
-            // NOTE: this will send when init, you can request bind extra object from here
-            ExWlShellInitEvent::Start => InitRequest::RequestBind,
-            ExWlShellInitEvent::BindProvide(globals, qh) => {
-                // NOTE: you can get implied wayland object from here
-                let virtual_keyboard_manager = globals
-                    .bind::<zwp_virtual_keyboard_v1::ZwpVirtualKeyboardManagerV1, _, _>(
-                        qh,
-                        1..=1,
-                        (),
-                    )
-                    .unwrap();
-                println!("{:?}", virtual_keyboard_manager);
-                InitRequest::RequestCompositor
-            }
-            ExWlShellInitEvent::CompositorProvide(_compositor, _qh) => {
-                // NOTE: this is an example to use the CompositorProvide,
-                // but this is quite useless, because you can get the window_unit to set it directly
-                // NOTE: you can set input region to limit area which gets input events
-                // surface outside region becomes transparent for input events
-                // To ignore all input events use region with (0,0) size
-                // for x in state.get_unit_iter() {
-                //     let region = _compositor.create_region(_qh, ());
-                //     region.add(0, 0, 0, 0);
-                //     x.get_wlsurface().set_input_region(Some(&region));
-                // }
-                InitRequest::None
-            }
-        }
-    }
 
     fn on_normal_dispatch(&mut self, _context: NoIdEventContext<Self>) {}
 

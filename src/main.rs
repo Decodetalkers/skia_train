@@ -10,12 +10,6 @@ struct Window {
     buffers: HashMap<id::Id, softbuffer::Surface<DisplayWrapper, WindowWrapper>>,
 }
 
-struct CairoData {
-    data: softbuffer::Surface<DisplayWrapper, WindowWrapper>,
-    surface: cairo::ImageSurface,
-    cairo_context: cairo::Context,
-}
-
 impl ExWlShellHandler for Window {
     type Ret = i32;
     fn return_value(&self) -> Option<Self::Ret> {
@@ -84,21 +78,18 @@ impl ExWlShellHandler for Window {
                 )
                 .unwrap();
         }
-        let mut buffer = surface.buffer_mut().unwrap();
+        let mut buffer = surface.next_buffer().unwrap();
 
         use std::cmp::min;
         let buf_x = buffer.width().get();
         let buf_y = buffer.height().get();
-        for index in 0..(buffer.width().get() * buffer.height().get()) {
-            let y = index / buffer.width().get();
-            let x = index % buffer.width().get();
+        for (x, y, pixel) in buffer.pixels_iter() {
             let a = 0xFF;
             let r = min(((buf_x - x) * 0xFF) / buf_x, ((buf_y - y) * 0xFF) / buf_y);
             let g = min((x * 0xFF) / buf_x, ((buf_y - y) * 0xFF) / buf_y);
             let b = min(((buf_x - x) * 0xFF) / buf_x, (y * 0xFF) / buf_y);
 
-            let color = (a << 24) + (r << 16) + (g << 8) + b;
-            buffer[index as usize] = color;
+            *pixel = softbuffer::Pixel::new_bgra(b as _, g as _, r as _, a as _);
         }
         buffer.present().unwrap();
 

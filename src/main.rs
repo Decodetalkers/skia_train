@@ -1,5 +1,6 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::num::NonZeroU32;
+use std::sync::Arc;
 
 use exwlshellev::keyboard::{KeyCode, PhysicalKey};
 use exwlshellev::reexport::*;
@@ -9,6 +10,130 @@ use tiny_skia::*;
 struct Window {
     context: softbuffer::Context<DisplayWrapper>,
     buffers: HashMap<id::Id, softbuffer::Surface<DisplayWrapper, WindowWrapper>>,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct Position<T = f32> {
+    x: T,
+    y: T,
+}
+
+// I want to make a basic drawing surface, so I need
+// brush, cursor, rectangle
+// Then I need undo and redo
+// So I need to maintain two machine states
+
+/// Line, record the line
+#[derive(Debug, Clone, Copy)]
+struct Line {
+    start: Position,
+    end: Position,
+    color: Color,
+    line: f32,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct Circle {
+    center: Position,
+    radius: f32,
+    color: Color,
+}
+
+trait Element {
+    fn draw(&self, _pixmap: &mut Pixmap) {}
+}
+
+struct StateMachine {
+    current: VecDeque<Box<dyn Element>>,
+    restore: VecDeque<Box<dyn Element>>,
+}
+
+impl StateMachine {
+    fn op_line(&mut self, operator: Line) {
+        let redo: Box<dyn Element> = Box::new(operator);
+        self.current.push_back(redo);
+        self.restore.clear();
+    }
+    fn op_circle(&mut self, operator: Circle) {
+        let redo: Box<dyn Element> = Box::new(operator);
+        self.current.push_back(redo);
+        self.restore.clear();
+    }
+    fn undo(&mut self) {
+        let Some(redo) = self.current.pop_back() else {
+            return;
+        };
+        self.restore.push_back(redo);
+    }
+    fn redo(&mut self) {
+        let Some(undo) = self.restore.pop_back() else {
+            return;
+        };
+        self.current.push_back(undo);
+    }
+    fn redraw(&self, pixmap: &mut Pixmap) {
+        for curr in &self.current {
+            curr.draw(pixmap);
+        }
+    }
+}
+
+impl Element for Line {
+    fn draw(&self, pixmap: &mut Pixmap) {
+        let mut paint = Paint::default();
+        paint.set_color(self.color);
+        paint.anti_alias = true;
+        let path = {
+            let mut pb = PathBuilder::new();
+            pb.move_to(self.start.x, self.start.y);
+            pb.line_to(self.end.x, self.end.y);
+            pb.close();
+            pb.finish().unwrap()
+        };
+
+        pixmap.stroke_path(
+            &path,
+            &paint,
+            &Stroke {
+                width: self.line,
+                ..Default::default()
+            },
+            Transform::identity(),
+            None,
+        );
+    }
+}
+
+impl Element for Circle {
+    fn draw(&self, pixmap: &mut Pixmap) {
+        let mut paint = Paint::default();
+        paint.set_color(self.color);
+        paint.anti_alias = true;
+        let path = {
+            let mut pb = PathBuilder::new();
+            pb.push_circle(self.center.x, self.center.y, self.radius);
+            pb.close();
+            pb.finish().unwrap()
+        };
+
+        pixmap.fill_path(
+            &path,
+            &paint,
+            FillRule::Winding,
+            Transform::identity(),
+            None,
+        );
+    }
+}
+// ViewPort is use to clip a part of the Pixmap area, and just render this part
+// It should be the same of the wayland surface
+// but it allows width and height to be minus, that means the direction
+#[derive(Debug, Clone, Copy)]
+struct ViewPort {
+    x: i32,
+    y: i32,
+    width: i32,
+    height: i32,
 }
 
 fn draw(width: u32, height: u32) -> Pixmap {
@@ -96,7 +221,9 @@ impl ExWlShellHandler for Window {
 
         let pixmap = draw(width, height);
         for (x, y, pixel) in buffer.pixels_iter() {
-            let sika_pixel = pixmap.pixel(x, y).unwrap();
+            let Some(sika_pixel) = pixmap.pixel(x, y) else {
+                continue;
+            };
             let b = sika_pixel.blue();
             let g = sika_pixel.green();
             let r = sika_pixel.red();

@@ -6,7 +6,5 @@ edition = "2024"
 [dependencies]
 cairo-rs = "0.22.9"
 exwlshellev = "0.21.2"
-pango = "0.22.9"
-pangocairo = "0.22.9"
 softbuffer = { git = "https://github.com/rust-windowing/softbuffer.git" }
 tiny-skia = "0.12.0"
